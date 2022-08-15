@@ -35,33 +35,18 @@ checkFirstParam() {
   fi
 }
 
-pipelineJson=$1
+pipelineJson=$1;
+echo "Pipeline.json path: $pipelineJson"
 
-## Perform checks
-checkJQ
-checkFirstParam $pipelineJson
-
-## Copy json
-cat $pipelineJson > $pipelineJsonCopy
-
-## Remove metadata
-echo "Removing metadata..."
-jq 'del(.metadata)' "$pipelineJsonCopy" > tmp.$$.json && mv tmp.$$.json "$pipelineJsonCopy"
-## Increment version
-echo "Incrementing version..."
-jq '.pipeline.version +=1' "$pipelineJsonCopy" > tmp.json && mv tmp.json "$pipelineJsonCopy"
-
-## Perform only metadata delete and version upgrade if there is only one param provided.
-if [ "$#" -eq "1" ]; then
-  exit 0
-fi
+shift # https://unix.stackexchange.com/questions/140840/using-getopts-to-parse-options-after-a-non-option-argument
 
 ## Get the options (only short ones)
-while getopts b:c:o: option; do
+while getopts b:c:o:p option; do # no ":" means no argument after the flag
    case $option in
-      b) branch=$OPTARG;; # Branch
-      c) configuration=$OPTARG;; # Configuration
-      o) owner=$OPTARG;; # Owner
+      b) branch=$OPTARG;;
+      c) configuration=$OPTARG;;
+      o) owner=$OPTARG;;
+      p) pollForSourceChanges=true;;
       \?) # Invalid option
         echo "Error: Invalid option"
         exit;;
@@ -71,5 +56,33 @@ done
 echo "Branch: $branch"
 echo "Configuration: $configuration"
 echo "Owner: $owner"
+echo "PollForSourceChanges: $pollForSourceChanges"
+
+## Perform checks
+checkJQ
+checkFirstParam $pipelineJson
+
+## Copy json
+cat $pipelineJson > $pipelineJsonCopy
+
+echo "Removing metadata..."
+jq 'del(.metadata)' "$pipelineJsonCopy" > tmp.$$.json && mv tmp.$$.json "$pipelineJsonCopy"
+
+echo "Incrementing version..."
+jq '.pipeline.version +=1' "$pipelineJsonCopy" > tmp.json && mv tmp.json "$pipelineJsonCopy"
+
+## Perform only metadata delete and version upgrade if there is only one param provided.
+if [ "$#" -eq "1" ]; then
+  exit 0
+fi
+
+echo "Updating the Branch..."
+jq --arg a "$branch" '.[].stages[0].actions[0].configuration.Branch = $a' $pipelineJsonCopy > tmp.json && mv tmp.json "$pipelineJsonCopy"
+
+echo "Updating the Owner..."
+jq --arg a "$owner" '.[].stages[0].actions[0].configuration.Owner = $a' $pipelineJsonCopy > tmp.json && mv tmp.json "$pipelineJsonCopy"
+
+echo "Updating the PollForSourceChanges..."
+jq --arg a "$pollForSourceChanges" '.[].stages[0].actions[0].configuration.PollForSourceChanges = $a' $pipelineJsonCopy > tmp.json && mv tmp.json "$pipelineJsonCopy"
 
 exit 0

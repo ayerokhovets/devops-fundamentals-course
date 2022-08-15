@@ -20,10 +20,10 @@
             },
             "runOrder": 1,
             "configuration": {
-              "Branch": "{{Branch name}}",
+              "Branch": "mybranch",
               "OAuthToken": "****",
-              "Owner": "{{GitHub Owner}}",
-              "PollForSourceChanges": "{{PollForSourceChanges}}",
+              "Owner": "AlexYerakhavets",
+              "PollForSourceChanges": "true",
               "Repo": "shop-angular-cloudfront"
             },
             "outputArtifacts": [

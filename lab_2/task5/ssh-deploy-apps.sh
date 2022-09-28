@@ -34,3 +34,5 @@ echo $CLIENT_HOST_DIR
 cd $CLIENT_HOST_DIR && npm run build
 scp -Cr $CLIENT_HOST_DIR/dist/* ubuntu-sshuser:$CLIENT_REMOTE_DIR
 echo "Building and transfering - COMPLETE::"
+
+ssh ubuntu-sshuser "cd SERVER_REMOTE_DIR && nodemon ./main.js localhost 3001"

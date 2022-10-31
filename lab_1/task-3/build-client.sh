@@ -5,7 +5,6 @@ ROOT_DIR=${SCRIPT_DIR%/*}
 CLIENT_BUILD_DIR=$ROOT_DIR/dist/static
 
 clientBuildFile=$ROOT_DIR/dist/client-app.zip
-# echo $clientBuildFile
 
 # For testing environment variables from .env
 # export $(grep -v '^#' $ROOT_DIR/.env | xargs -d '\n')

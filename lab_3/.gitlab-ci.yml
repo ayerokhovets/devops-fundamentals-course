@@ -1,0 +1,74 @@
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  PACKAGE_PATH: ./*.tgz
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    - if: $CI_COMMIT_BRANCH == 'develop'
+
+default:
+  image: $NODE_IMAGE:$NODE_VERSION
+  cache:
+    key:
+      files:
+        - package-lock.json                             # Cache modules using lock file
+    paths:
+      - .npm/                                           # This folder is cached between builds
+                                                        # https://docs.gitlab.com/ee/ci/caching
+  before_script:
+    - node --version && npm --version
+    - npm ci --cache .npm --prefer-offline
+
+jest:                                                   # Job runs jest tests
+  stage: test
+  script:
+    - npm run test
+
+code-quality:                                           # Job runs lint, prettier, svgo, typescript
+  stage: test
+  script:
+    - npm run lint
+    - npm run prettier
+    - npm run svgo
+    - npm run tsc
+
+build-package:
+  stage: build
+  script:
+    - npm run build
+    - npm pack
+  artifacts:
+    paths:
+      - $PACKAGE_PATH
+    expire_in: 3 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: never
+    - if: $CI_COMMIT_BRANCH == 'develop'
+
+# How to publish npm: https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/npm.gitlab-ci.yml
+# Gitlab predefined variables: https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
+# About Package Registry: https://docs.gitlab.com/ee/user/packages/npm_registry
+publish:
+  stage: deploy
+  script:
+    - echo "Generate a temporary .npmrc that is configured to publish to GitLab's NPM registry."
+      # Set URL for the scoped package. (echo 1)
+      # Add token for uploading to the registry. (echo 2)
+    - |
+      {
+        echo "@my:registry=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/"
+        echo "${CI_API_V4_URL#http*:}/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=\${GITLAB_DEPLOY_TOKEN}"
+      } >> .npmrc
+    - npm publish $PACKAGE_PATH                         # Publish .tgz from the build stage
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      when: never
+    - if: $CI_COMMIT_BRANCH == 'develop'
+      when: manual
+      allow_failure: true                               # Pipeline continues running even if the manual job is not run
